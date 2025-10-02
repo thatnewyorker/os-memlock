@@ -8,8 +8,8 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 documentation = "https://docs.rs/os-memlock"
 keywords = ["memory", "mlock", "munlock", "madvise", "security"]
-repository = "https://github.com/thatnewyorker/Conflux"
-homepage = "https://github.com/thatnewyorker/Conflux"
+repository = "https://github.com/thatnewyorker/os-memlock"
+homepage = "https://github.com/thatnewyorker/os-memlock"
 
 [package.metadata.docs.rs]
 all-features = true
