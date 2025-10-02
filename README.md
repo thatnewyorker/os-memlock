@@ -1,5 +1,7 @@
 # os-memlock
 
+[![Docs](https://docs.rs/os-memlock/badge.svg)](https://docs.rs/os-memlock)
+
 Quick links:
 - Detailed guide: docs/overview.md
 - API docs (docs.rs): https://docs.rs/os-memlock
