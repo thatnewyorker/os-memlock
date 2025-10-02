@@ -4,7 +4,7 @@
 
 Quick links:
 - Detailed guide: docs/overview.md
-- API docs (docs.rs): https://docs.rs/os-memlock
+- API docs (docs.rs): <https://docs.rs/os-memlock>
 - Examples:
   - examples/simple.rs
   - examples/locked_vec.rs
