@@ -1,7 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, deny(broken_intra_doc_links))]
 #![doc = include_str!("../README.md")]
-#![doc = r#"For a comprehensive deep dive, see the [Detailed guide](https://github.com/thatnewyorker/Conflux/blob/main/crates/os-memlock/docs/overview.md)."#]
 #![warn(missing_docs)]
 
 use std::io;
