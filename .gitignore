@@ -5,6 +5,7 @@ os-memlock/.gitignore#L1-200
 # Build artifacts
 /target/
 **/target/
+Cargo.lock
 
 # If using rustup override or local toolchain files (usually committed, so commented)
 # /rust-toolchain
