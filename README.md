@@ -1,5 +1,23 @@
 # os-memlock
 
+Quick links:
+- Detailed guide: docs/overview.md
+- API docs (docs.rs): https://docs.rs/os-memlock
+- Examples:
+  - examples/simple.rs
+  - examples/locked_vec.rs
+
+## Docs
+
+The detailed guide covers:
+- Safety model and caller obligations: docs/overview.md#safety-model-and-caller-obligations
+- Platform support and behavior: docs/overview.md#cross-platform-behavior
+- Usage patterns and RAII wrappers: docs/overview.md#usage-patterns
+- Error model and diagnostics: docs/overview.md#error-model
+- Testing and CI: docs/overview.md#testing-and-ci
+- Security considerations and threat model: docs/overview.md#security-considerations
+- Integration checklist: docs/overview.md#integration-checklist
+
 Small, focused crate providing thin, unsafe wrappers around OS memory-locking syscalls:
 - `mlock` / `munlock` (prevent swapping)
 - `madvise(MADV_DONTDUMP)` (best-effort exclusion from core dumps on Linux)

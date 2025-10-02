@@ -1,17 +1,8 @@
-/*!
-Unsafe thin wrappers around OS memory locking syscalls (mlock/munlock) and related hints.
-
-This crate isolates the minimal `unsafe` FFI needed to interact with the OS so
-that higher-level crates can remain `#![forbid(unsafe_code)]`. The public wrappers
-here are unsafe to call; callers must uphold the usual preconditions for passing
-raw pointers to OS syscalls:
-
-- The `(addr, len)` region must be valid, owned by the caller, and cover initialized
-  memory for the duration of the call.
-- The region must not be mutated or deallocated concurrently with the call.
-
-On platforms that do not support these syscalls, functions return `io::ErrorKind::Unsupported`.
-*/
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, deny(broken_intra_doc_links))]
+#![doc = include_str!("../README.md")]
+#![doc = r#"For a comprehensive deep dive, see the [Detailed guide](https://github.com/thatnewyorker/Conflux/blob/main/crates/os-memlock/docs/overview.md)."#]
+#![warn(missing_docs)]
 
 use std::io;
 use std::os::raw::c_void;
@@ -36,6 +27,26 @@ mod unix {
     /// The caller must ensure that `(addr, len)` refers to a valid, non-null memory
     /// region owned by this process for the duration of the call, and that the region
     /// is not deallocated, unmapped, or remapped concurrently.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use std::io;
+    /// # fn demo() -> io::Result<()> {
+    /// let mut buf = vec![0u8; 4096];
+    /// let ptr = buf.as_ptr() as *const std::os::raw::c_void;
+    /// let len = buf.len();
+    /// match unsafe { os_memlock::mlock(ptr, len) } {
+    ///     Ok(()) => {
+    ///         // do work...
+    ///         unsafe { os_memlock::munlock(ptr, len)?; }
+    ///     }
+    ///     Err(e) if e.kind() == std::io::ErrorKind::Unsupported => {
+    ///         // platform/build doesn't support mlock; proceed without locking
+    ///     }
+    ///     Err(e) => return Err(e),
+    /// }
+    /// # Ok(()) }
+    /// ```
     pub unsafe fn mlock(addr: *const c_void, len: usize) -> io::Result<()> {
         if len == 0 {
             // Treat zero-length as a no-op success for ergonomic callers.
@@ -148,7 +159,9 @@ mod non_unix {
 
 // Re-export platform module functions at the crate root for a stable API.
 #[cfg(unix)]
+#[cfg_attr(docsrs, doc(cfg(unix)))]
 pub use unix::{madvise_dontdump, mlock, munlock};
 
 #[cfg(not(unix))]
+#[cfg_attr(docsrs, doc(cfg(not(unix))))]
 pub use non_unix::{madvise_dontdump, mlock, munlock};
