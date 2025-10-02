@@ -27,7 +27,7 @@ fn main() -> io::Result<()> {
     secret[..16].copy_from_slice(b"super-secret-data");
 
     let ptr = secret.as_ptr() as *const std::os::raw::c_void;
-    let _mut_ptr = secret.as_mut_ptr() as *mut std::os::raw::c_void;
+
     let len = secret.len();
 
     println!("Attempting to lock {} bytes at {:p}", len, ptr);
@@ -43,12 +43,15 @@ fn main() -> io::Result<()> {
 
     // Best-effort: on Linux, advise the kernel not to include the mapping in core dumps.
     #[cfg(target_os = "linux")]
-    match unsafe { os_memlock::madvise_dontdump(mut_ptr, len) } {
-        Ok(()) => println!("madvise(MADV_DONTDUMP) applied"),
-        Err(e) if e.kind() == io::ErrorKind::Unsupported => {
-            println!("madvise(MADV_DONTDUMP) unsupported on this platform/build")
+    {
+        let mut_ptr = secret.as_mut_ptr() as *mut std::os::raw::c_void;
+        match unsafe { os_memlock::madvise_dontdump(mut_ptr, len) } {
+            Ok(()) => println!("madvise(MADV_DONTDUMP) applied"),
+            Err(e) if e.kind() == io::ErrorKind::Unsupported => {
+                println!("madvise(MADV_DONTDUMP) unsupported on this platform/build")
+            }
+            Err(e) => eprintln!("madvise failed: {:#}", e),
         }
-        Err(e) => eprintln!("madvise failed: {:#}", e),
     }
 
     // Do some work while memory is (hopefully) locked.
