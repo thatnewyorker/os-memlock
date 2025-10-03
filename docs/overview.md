@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the `os-memlock` crate: its g
 
 - Crate: `os-memlock`
 - Purpose: Thin, unsafe wrappers around OS memory locking syscalls and adjacent hints
-- Public API: `unsafe fn mlock`, `unsafe fn munlock`, `unsafe fn madvise_dontdump` (Linux-only)
+- Public API: `unsafe fn mlock`, `unsafe fn munlock`, `unsafe fn madvise_dontdump` (Linux and FreeBSD), `fn disable_core_dumps_for_process` (macOS; Unsupported elsewhere), and `fn disable_core_dumps_with_guard() -> CoreDumpsDisabledGuard` (macOS; Unsupported elsewhere)
 - License: MIT OR Apache-2.0
 - Docs: https://docs.rs/os-memlock
 - Repository: https://github.com/thatnewyorker/Conflux
@@ -44,9 +44,14 @@ This document provides a comprehensive overview of the `os-memlock` crate: its g
   - Unlocks previously locked pages for the region.
   - Returns `Unsupported` when unavailable on the target.
 
-- `unsafe fn madvise_dontdump(addr: *mut c_void, len: usize) -> io::Result<()>` (Linux only)
-  - Advises the kernel not to include the mapping in core dumps (`MADV_DONTDUMP`).
-  - Returns `Unsupported` on non-Linux targets.
+- `unsafe fn madvise_dontdump(addr: *mut c_void, len: usize) -> io::Result<()>` (Linux and FreeBSD)
+  - Advises the kernel not to include the mapping in core dumps (Linux: `MADV_DONTDUMP`, FreeBSD: `MADV_NOCORE`).
+  - Returns `Unsupported` on targets other than Linux and FreeBSD.
+
+- `fn disable_core_dumps_for_process() -> io::Result<()>` (macOS)
+  - Disables core dumps for the current process by setting the `RLIMIT_CORE` soft limit to 0 (process-wide).
+  - On non-macOS targets, returns `Unsupported`.
+  - Process-wide effect and inherited by child processes; lowering is typically permitted, raising back may require privileges or be disallowed by policy.
 
 Notes
 - Zero-length `len == 0` is treated as a no-op success for ergonomics.
@@ -90,7 +95,7 @@ All functions are `unsafe`. Callers must uphold the following:
 
 - Other Unix (macOS, BSDs)
   - `mlock` and `munlock`: call into libc equivalents.
-  - `madvise_dontdump`: returns `Unsupported` in this crate (even though some OSes expose roughly analogous knobs like `MADV_NOCORE` on *BSD). The crate intentionally opts for a conservative Linux-only implementation to keep semantics explicit and portable.
+  - `madvise_dontdump`: on FreeBSD, best-effort via `MADV_NOCORE`; on macOS, returns `Unsupported`. Semantics remain advisory and platform-specific.
 
 - Non-Unix (e.g., Windows)
   - All functions return `Unsupported`.
@@ -222,9 +227,13 @@ impl Drop for LockedBuf {
   - `mlock`/`munlock`: available.
   - `madvise_dontdump`: available via `MADV_DONTDUMP` (best-effort advisory).
   - Consider using `madvise_dontdump` for buffers containing secrets to reduce exposure in core dumps; treat as advisory, not a hard guarantee.
-- macOS/*BSD
+- FreeBSD
   - `mlock`/`munlock`: available.
-  - `madvise_dontdump`: not implemented here (returns `Unsupported`). Some platforms have alternatives (e.g., `MADV_NOCORE`), but this crate does not currently expose them.
+  - `madvise_dontdump`: available via `MADV_NOCORE` (best-effort advisory).
+- macOS
+  - `mlock`/`munlock`: available.
+  - `madvise_dontdump`: returns `Unsupported` (no per-region dump-exclusion advice on Darwin).
+  - Process-wide helpers: `disable_core_dumps_for_process()` to disable core dumps for the process, and `disable_core_dumps_with_guard() -> CoreDumpsDisabledGuard` to temporarily disable and automatically restore the previous `RLIMIT_CORE` on Drop. Best-effort and may fail in sandboxed/restricted environments. Effect is inherited by child processes at fork; dropping the guard in the parent does not retroactively change limits of already-forked children. Lowering limits is generally permitted; raising them back may require additional privileges.
 - Non-Unix
   - All functions return `Unsupported`.
 
@@ -314,7 +323,7 @@ Implications
 ## Examples Directory
 
 - `examples/simple.rs`
-  - Minimal usage with safe error handling and Linux-only dump-exclusion hint.
+  - Minimal usage with safe error handling and Linux/FreeBSD dump-exclusion hint.
 - `examples/locked_vec.rs`
   - A minimal RAII example that locks on creation, zeroizes on drop, and unlocks before freeing. Demonstrates a pattern for safe wrappers.
 

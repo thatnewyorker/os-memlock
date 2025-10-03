@@ -41,14 +41,14 @@ fn main() -> io::Result<()> {
         Err(e) => return Err(e),
     }
 
-    // Best-effort: on Linux, advise the kernel not to include the mapping in core dumps.
-    #[cfg(target_os = "linux")]
+    // Best-effort: on Linux and FreeBSD, advise the kernel not to include the mapping in core dumps.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     {
         let mut_ptr = secret.as_mut_ptr() as *mut std::os::raw::c_void;
         match unsafe { os_memlock::madvise_dontdump(mut_ptr, len) } {
-            Ok(()) => println!("madvise(MADV_DONTDUMP) applied"),
+            Ok(()) => println!("madvise dump-exclusion hint applied"),
             Err(e) if e.kind() == io::ErrorKind::Unsupported => {
-                println!("madvise(MADV_DONTDUMP) unsupported on this platform/build")
+                println!("madvise dump-exclusion hint unsupported on this platform/build")
             }
             Err(e) => eprintln!("madvise failed: {:#}", e),
         }

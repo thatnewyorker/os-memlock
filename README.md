@@ -22,7 +22,7 @@ The detailed guide covers:
 
 Small, focused crate providing thin, unsafe wrappers around OS memory-locking syscalls:
 - `mlock` / `munlock` (prevent swapping)
-- `madvise(MADV_DONTDUMP)` (best-effort exclusion from core dumps on Linux)
+- `madvise_dontdump` (best-effort exclusion from core dumps: Linux `MADV_DONTDUMP`, FreeBSD `MADV_NOCORE`)
 
 This crate isolates the minimal unsafe FFI surface so higher-level modules can remain
 `#![forbid(unsafe_code)]`. The public functions are intentionally `unsafe` to make
@@ -54,8 +54,8 @@ The crate re-exports the platform-specific implementations at the crate root:
   - On unsupported platforms, returns `Err(io::ErrorKind::Unsupported)`.
 
 - `unsafe fn madvise_dontdump(addr: *mut std::os::raw::c_void, len: usize) -> std::io::Result<()>`
-  - Best-effort hint to exclude a mapping from core dumps (Linux: `MADV_DONTDUMP`).
-  - On non-Linux or unsupported platforms, returns `Err(io::ErrorKind::Unsupported)`.
+  - Best-effort hint to exclude a mapping from core dumps (Linux: `MADV_DONTDUMP`, FreeBSD: `MADV_NOCORE`).
+  - On unsupported platforms, returns `Err(io::ErrorKind::Unsupported)`.
 
 Notes on signatures:
 - The functions intentionally use raw pointers and `usize` lengths to mirror the OS call
@@ -100,7 +100,8 @@ All functions are `unsafe`. Callers must uphold the following preconditions for 
   - `mlock` and `munlock` call through to `libc::mlock` and `libc::munlock`.
   - `madvise_dontdump`:
     - On Linux: wraps `madvise(..., MADV_DONTDUMP)`.
-    - On non-Linux Unices: returns `Err(io::ErrorKind::Unsupported)`.
+    - On FreeBSD: wraps `madvise(..., MADV_NOCORE)`.
+    - On macOS and other Unix targets: returns `Err(io::ErrorKind::Unsupported)`.
 
 - Non-Unix platforms:
   - All functions return `Err(io::ErrorKind::Unsupported)`.
@@ -120,7 +121,7 @@ Use `mlock` to lock a buffer you control. Wrap calls in `unsafe` and uphold the 
 Later, before drop/unmapping:
 `unsafe { os_memlock::munlock(buf.as_ptr() as *const _, buf.len())?; }`
 
-Call `madvise_dontdump` on Linux to reduce chance of core dump exposure:
+Call `madvise_dontdump` on Linux/FreeBSD to reduce chance of core dump exposure:
 `unsafe { os_memlock::madvise_dontdump(buf.as_mut_ptr() as *mut _, buf.len())?; }`
 
 - Higher-level recommended pattern:
@@ -152,14 +153,30 @@ Call `madvise_dontdump` on Linux to reduce chance of core dump exposure:
 
 ---
 
-## Security & maintenance notes
+## macOS process-wide core-dump helper
 
-- This crate keeps unsafe code minimal and concentrated for simpler auditing.
-- When adding new functions or platform support:
-  - Document safety obligations clearly in the function-level comments.
-  - Add unit tests for both supported and unsupported-platform behaviors.
-  - Avoid adding higher-level policies here; keep this crate focused on raw syscall
-    mapping and let callers implement policy/ownership semantics.
+macOS does not expose a per-region dump-exclusion advice via `madvise` (there is no `MADV_DONTDUMP`/`MADV_NOCORE` on Darwin). To offer a practical alternative, this crate provides opt-in, process-wide helpers:
+
+- `disable_core_dumps_for_process()`:
+  - Platform: macOS-only behavior; on other platforms this function returns `io::ErrorKind::Unsupported`.
+  - Effect: Sets the process `RLIMIT_CORE` soft limit to 0 to disable generation of core dumps for the process.
+  - Safety: Exposed as a safe function because it has no pointer/lifetime obligations; it returns `io::Result<()>` on failure/success.
+  - Scope: Process-wide and inherited by child processes. This is not a per-buffer or per-region setting.
+  - Privileges: Lowering the soft limit to 0 is typically permitted; raising limits back may require additional privileges or be disallowed by system policy.
+  - Operational notes: In sandboxed or restricted environments, changing resource limits may fail. Handle errors and decide whether to degrade gracefully or fail closed, per your policy.
+
+- `disable_core_dumps_with_guard() -> CoreDumpsDisabledGuard`:
+  - Platform: macOS-only; on other platforms this function returns `io::ErrorKind::Unsupported`.
+  - Effect: Sets the process `RLIMIT_CORE` soft limit to 0 and returns a guard. When the guard is dropped, the previous limits are restored for the current process.
+  - Scope: Process-wide while active. Child processes forked while disabled inherit the lowered limit and are not automatically “restored” by dropping the guard in the parent.
+  - Safety: Safe API returning `io::Result<CoreDumpsDisabledGuard>`.
+  - Privileges & operational notes: Same as above; restoration may fail under restrictive policies (restoration errors are best-effort and should be logged by callers if needed).
+
+Recommended usage:
+- For temporary disabling (e.g., during sensitive operations), prefer `disable_core_dumps_with_guard()` to ensure restoration even on panic or early returns.
+- For a whole-process policy, call `disable_core_dumps_for_process()` early in startup.
+- Combine with `mlock`/`munlock` to reduce the risk of secrets being paged to disk.
+- Log or surface metrics if the helper is unsupported or fails, so you can detect drift from your intended security posture.
 
 ---
 
