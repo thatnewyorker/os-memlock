@@ -163,14 +163,6 @@ Call `madvise_dontdump` on Linux to reduce chance of core dump exposure:
 
 ---
 
-## Publishing considerations
-
-- The crate name `os-memlock` was chosen to be descriptive and platform-agnostic.
-- If publishing to crates.io, choose a version and add a short changelog entry.
-- Ensure licensing and authorship metadata in `Cargo.toml` are accurate.
-
----
-
 ## License
 
 This crate is dual-licensed under Apache-2.0 OR MIT; see `Cargo.toml` for details.
