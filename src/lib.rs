@@ -280,7 +280,10 @@ pub fn disable_core_dumps_with_guard() -> io::Result<CoreDumpsDisabledGuard> {
 #[cfg(not(target_os = "macos"))]
 #[cfg_attr(docsrs, doc(cfg(not(target_os = "macos"))))]
 pub fn disable_core_dumps_with_guard() -> io::Result<CoreDumpsDisabledGuard> {
-    unsupported("disable_core_dumps_with_guard unsupported on this platform")
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "disable_core_dumps_with_guard unsupported on this platform",
+    ))
 }
 
 // Re-export platform module functions at the crate root for a stable API.
@@ -365,7 +368,7 @@ mod windows {
     /// See module-level docs for details.
     pub const SEM_NOOPENFILEERRORBOX: u32 = 0x8000;
 
-    extern "system" {
+    unsafe extern "system" {
         fn SetErrorMode(uMode: u32) -> u32;
     }
 
@@ -407,7 +410,10 @@ mod windows {
 
 #[cfg(windows)]
 #[cfg_attr(docsrs, doc(cfg(windows)))]
-pub use windows::{madvise_dontdump, mlock, munlock};
+pub use windows::{
+    SEM_FAILCRITICALERRORS, SEM_NOGPFAULTERRORBOX, SEM_NOOPENFILEERRORBOX, madvise_dontdump, mlock,
+    munlock, set_windows_error_mode, suppress_windows_error_dialogs_for_process,
+};
 
 #[cfg(not(windows))]
 /// Set the Windows process error mode (stub).
