@@ -1,6 +1,6 @@
 [package]
 name = "os-memlock"
-version = "0.1.11"
+version = "0.2.0"
 edition = "2024"
 description = "Unsafe thin wrappers around OS memory locking syscalls (mlock/munlock/madvise)"
 license = "MIT OR Apache-2.0"
