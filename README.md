@@ -178,6 +178,27 @@ Recommended usage:
 - Combine with `mlock`/`munlock` to reduce the risk of secrets being paged to disk.
 - Log or surface metrics if the helper is unsupported or fails, so you can detect drift from your intended security posture.
 
+## Windows process-wide error-dialog helpers
+
+Windows does not provide a per-region dump-exclusion API analogous to `MADV_DONTDUMP`. To improve operational behavior (avoiding certain error UI), this crate provides opt-in, process-wide helpers:
+
+- `set_windows_error_mode(new_mode: u32) -> io::Result<u32>`:
+  - Platform: Windows-only; on other platforms returns `io::ErrorKind::Unsupported`.
+  - Effect: Calls `SetErrorMode` with the provided flags and returns the previous mode.
+  - Scope: Process-wide; inherited by child processes created after the change.
+  - Notes: This does not control crash dump contents and is not a security feature. It primarily suppresses certain error dialogs.
+
+- `suppress_windows_error_dialogs_for_process() -> io::Result<u32>`:
+  - Platform: Windows-only; on other platforms returns `io::ErrorKind::Unsupported`.
+  - Effect: Applies a common combination of flags (`SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX`) via `SetErrorMode` and returns the previous mode.
+  - Scope: Process-wide; inherited by child processes created after the change.
+  - Notes: This is best-effort UX/operational control and is not equivalent to per-region dump exclusion.
+
+Recommended usage:
+- Call early in process startup if you want to suppress Windows error dialogs globally.
+- Save and restore the previous mode when temporarily changing settings to limit blast radius.
+- Treat these helpers as operational/UX tweaks, not security controls; combine with `mlock`/`munlock` for memory handling as needed.
+
 ---
 
 ## License

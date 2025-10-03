@@ -18,17 +18,17 @@ mod unix {
     /// Lock the pages containing the specified memory region to prevent swapping.
     ///
     /// Returns:
-    /// - `Ok(())` on success
-    /// - `Err(...)` with `last_os_error()` on failure
-    /// - `Err(Unsupported)` on platforms where this call is not available
+    /// - Ok(()) on success
+    /// - Err(...) with last_os_error() on failure
+    /// - Err(Unsupported) on platforms where this call is not available
     ///
     /// # Safety
-    /// The caller must ensure that `(addr, len)` refers to a valid, non-null memory
+    /// The caller must ensure that (addr, len) refers to a valid, non-null memory
     /// region owned by this process for the duration of the call, and that the region
     /// is not deallocated, unmapped, or remapped concurrently.
     ///
     /// # Examples
-    /// ```no_run
+    /// no_run
     /// # use std::io;
     /// # fn demo() -> io::Result<()> {
     /// let mut buf = vec![0u8; 4096];
@@ -45,15 +45,15 @@ mod unix {
     ///     Err(e) => return Err(e),
     /// }
     /// # Ok(()) }
-    /// ```
+    ///
     pub unsafe fn mlock(addr: *const c_void, len: usize) -> io::Result<()> {
         if len == 0 {
             // Treat zero-length as a no-op success for ergonomic callers.
             return Ok(());
         }
         // Safety:
-        // - We do not dereference `addr`.
-        // - Caller guarantees `(addr, len)` is a valid region they own during the call.
+        // - We do not dereference addr.
+        // - Caller guarantees (addr, len) is a valid region they own during the call.
         let rc = unsafe { libc::mlock(addr, len) };
         if rc == 0 {
             Ok(())
@@ -65,12 +65,12 @@ mod unix {
     /// Unlock the pages containing the specified memory region.
     ///
     /// Returns:
-    /// - `Ok(())` on success
-    /// - `Err(...)` with `last_os_error()` on failure
-    /// - `Err(Unsupported)` on platforms where this call is not available
+    /// - Ok(()) on success
+    /// - Err(...) with last_os_error() on failure
+    /// - Err(Unsupported) on platforms where this call is not available
     ///
     /// # Safety
-    /// The caller must ensure that `(addr, len)` refers to a valid, non-null memory
+    /// The caller must ensure that (addr, len) refers to a valid, non-null memory
     /// region owned by this process for the duration of the call, and that the region
     /// is not deallocated, unmapped, or remapped concurrently.
     pub unsafe fn munlock(addr: *const c_void, len: usize) -> io::Result<()> {
@@ -78,7 +78,7 @@ mod unix {
             // Treat zero-length as a no-op success for ergonomic callers.
             return Ok(());
         }
-        // Safety: same preconditions as `mlock`.
+        // Safety: same preconditions as mlock.
         let rc = unsafe { libc::munlock(addr, len) };
         if rc == 0 {
             Ok(())
@@ -89,16 +89,16 @@ mod unix {
 
     /// Best-effort advisory to exclude the memory region from core dumps.
     ///
-    /// On Linux, this wraps `madvise(MADV_DONTDUMP)`. On FreeBSD, this wraps
-    /// `madvise(MADV_NOCORE)`. On other Unix targets, this returns `Unsupported`.
+    /// On Linux, this wraps madvise(MADV_DONTDUMP). On FreeBSD, this wraps
+    /// madvise(MADV_NOCORE). On other Unix targets, this returns Unsupported.
     ///
     /// Returns:
-    /// - `Ok(())` when the hint is applied
-    /// - `Err(...)` with `last_os_error()` if the call failed
-    /// - `Err(Unsupported)` if not supported on this platform
+    /// - Ok(()) when the hint is applied
+    /// - Err(...) with last_os_error() if the call failed
+    /// - Err(Unsupported) if not supported on this platform
     ///
     /// # Safety
-    /// The caller must ensure that `(addr, len)` denotes a valid memory mapping for
+    /// The caller must ensure that (addr, len) denotes a valid memory mapping for
     /// this process and that the region is not deallocated or remapped concurrently.
     #[cfg(target_os = "linux")]
     pub unsafe fn madvise_dontdump(addr: *mut c_void, len: usize) -> io::Result<()> {
@@ -106,8 +106,8 @@ mod unix {
             return Ok(());
         }
         // Safety:
-        // - We do not dereference `addr`.
-        // - Caller guarantees `(addr, len)` is a valid region they own during the call.
+        // - We do not dereference addr.
+        // - Caller guarantees (addr, len) is a valid region they own during the call.
         let rc = libc::madvise(addr, len, libc::MADV_DONTDUMP);
         if rc == 0 {
             Ok(())
@@ -119,7 +119,7 @@ mod unix {
     /// FreeBSD: use MADV_NOCORE to request exclusion from core dumps.
     #[cfg(target_os = "freebsd")]
     /// # Safety
-    /// The caller must ensure that `(addr, len)` denotes a valid memory mapping for
+    /// The caller must ensure that (addr, len) denotes a valid memory mapping for
     /// this process and that the region is not deallocated or remapped concurrently.
     pub unsafe fn madvise_dontdump(addr: *mut c_void, len: usize) -> io::Result<()> {
         if len == 0 {
@@ -133,12 +133,12 @@ mod unix {
         }
     }
 
-    /// See `madvise_dontdump` above. On other Unix targets, this is unsupported.
+    /// See madvise_dontdump above. On other Unix targets, this is unsupported.
     #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
     /// # Safety
     /// This function is marked unsafe for signature consistency. On unsupported Unix
-    /// targets it always returns `Unsupported`; callers compiling cross-platform
-    /// must still treat `(addr, len)` as potentially unsafe inputs.
+    /// targets it always returns Unsupported; callers compiling cross-platform
+    /// must still treat (addr, len) as potentially unsafe inputs.
     pub unsafe fn madvise_dontdump(_addr: *mut c_void, _len: usize) -> io::Result<()> {
         super::unsupported("madvise-based dump exclusion unsupported on this platform")
     }
@@ -150,24 +150,24 @@ mod non_unix {
 
     /// # Safety
     /// This function is marked unsafe for signature consistency across platforms.
-    /// On non-Unix targets it always returns `Unsupported`; callers compiling
-    /// cross-platform must still treat `(addr, len)` as potentially unsafe inputs.
+    /// On non-Unix targets it always returns Unsupported; callers compiling
+    /// cross-platform must still treat (addr, len) as potentially unsafe inputs.
     pub unsafe fn mlock(_addr: *const c_void, _len: usize) -> io::Result<()> {
         super::unsupported("mlock unsupported on this platform")
     }
 
     /// # Safety
     /// This function is marked unsafe for signature consistency across platforms.
-    /// On non-Unix targets it always returns `Unsupported`; callers compiling
-    /// cross-platform must still treat `(addr, len)` as potentially unsafe inputs.
+    /// On non-Unix targets it always returns Unsupported; callers compiling
+    /// cross-platform must still treat (addr, len) as potentially unsafe inputs.
     pub unsafe fn munlock(_addr: *const c_void, _len: usize) -> io::Result<()> {
         super::unsupported("munlock unsupported on this platform")
     }
 
     /// # Safety
     /// This function is marked unsafe for signature consistency across platforms.
-    /// On non-Unix targets it always returns `Unsupported`; callers compiling
-    /// cross-platform must still treat `(addr, len)` as potentially unsafe inputs.
+    /// On non-Unix targets it always returns Unsupported; callers compiling
+    /// cross-platform must still treat (addr, len) as potentially unsafe inputs.
     pub unsafe fn madvise_dontdump(_addr: *mut c_void, _len: usize) -> io::Result<()> {
         super::unsupported("madvise(MADV_DONTDUMP) unsupported on this platform")
     }
@@ -176,16 +176,16 @@ mod non_unix {
 /// Disable core dumps for the current process on macOS by setting the RLIMIT_CORE soft limit to 0.
 ///
 /// Platform:
-/// - macOS only. On other platforms, see the cross-platform stub which returns `Unsupported`.
+/// - macOS only. On other platforms, see the cross-platform stub which returns Unsupported.
 ///
 /// Behavior:
 /// - This is a process-wide policy and is inherited by child processes.
 /// - Lowering the soft limit is typically permitted; raising it back may require extra privileges.
-/// - May fail in sandboxed or restricted environments; returns `io::Error` from the OS.
+/// - May fail in sandboxed or restricted environments; returns io::Error from the OS.
 ///
 /// Returns:
-/// - `Ok(())` on success.
-/// - `Err(io::Error)` with `last_os_error()` on failure.
+/// - Ok(()) on success.
+/// - Err(io::Error) with last_os_error() on failure.
 #[cfg(target_os = "macos")]
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 pub fn disable_core_dumps_for_process() -> io::Result<()> {
@@ -213,10 +213,10 @@ pub fn disable_core_dumps_for_process() -> io::Result<()> {
 /// Disable core dumps for the current process.
 ///
 /// Platform:
-/// - This stub is compiled on non-macOS targets and always returns `Unsupported`.
+/// - This stub is compiled on non-macOS targets and always returns Unsupported.
 ///
 /// See also:
-/// - On macOS, `disable_core_dumps_for_process` attempts to set `RLIMIT_CORE` to 0.
+/// - On macOS, disable_core_dumps_for_process attempts to set RLIMIT_CORE to 0.
 #[cfg(not(target_os = "macos"))]
 #[cfg_attr(docsrs, doc(cfg(not(target_os = "macos"))))]
 pub fn disable_core_dumps_for_process() -> io::Result<()> {
@@ -251,7 +251,7 @@ impl Drop for CoreDumpsDisabledGuard {
 /// Disable core dumps for the current process and return a guard that restores the previous limit on drop.
 ///
 /// Platform:
-/// - macOS only. On other platforms, this function returns `Unsupported`.
+/// - macOS only. On other platforms, this function returns Unsupported.
 ///
 /// Behavior:
 /// - Sets RLIMIT_CORE soft limit to 0; guard restores previous limit on Drop.
@@ -288,8 +288,151 @@ pub fn disable_core_dumps_with_guard() -> io::Result<CoreDumpsDisabledGuard> {
 #[cfg_attr(docsrs, doc(cfg(unix)))]
 pub use unix::{madvise_dontdump, mlock, munlock};
 
-#[cfg(not(unix))]
-#[cfg_attr(docsrs, doc(cfg(not(unix))))]
+#[cfg(windows)]
+mod windows {
+    use super::{c_void, io};
+    use windows_sys::Win32::System::Memory::{VirtualLock, VirtualUnlock};
+
+    /// Lock the pages containing the specified memory region to prevent paging on Windows.
+    ///
+    /// Returns:
+    /// - `Ok(())` on success
+    /// - `Err(...)` with `last_os_error()` on failure
+    ///
+    /// # Safety
+    /// The caller must ensure that `(addr, len)` refers to a valid, non-null memory
+    /// region owned by this process for the duration of the call, and that the region
+    /// is not deallocated, unmapped, or remapped concurrently.
+    pub unsafe fn mlock(addr: *const c_void, len: usize) -> io::Result<()> {
+        if len == 0 {
+            return Ok(());
+        }
+        let ok = unsafe { VirtualLock(addr as *mut _, len) };
+        if ok != 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+
+    /// Unlock the pages containing the specified memory region on Windows.
+    ///
+    /// Returns:
+    /// - `Ok(())` on success
+    /// - `Err(...)` with `last_os_error()` on failure
+    ///
+    /// # Safety
+    /// The caller must ensure that `(addr, len)` refers to a valid, non-null memory
+    /// region owned by this process for the duration of the call, and that the region
+    /// is not deallocated, unmapped, or remapped concurrently.
+    pub unsafe fn munlock(addr: *const c_void, len: usize) -> io::Result<()> {
+        if len == 0 {
+            return Ok(());
+        }
+        let ok = unsafe { VirtualUnlock(addr as *mut _, len) };
+        if ok != 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+
+    /// Windows has no per-region equivalent of `MADV_DONTDUMP`; return Unsupported.
+    ///
+    /// # Safety
+    /// Signature kept for cross-platform parity; always returns Unsupported on Windows.
+    pub unsafe fn madvise_dontdump(_addr: *mut c_void, _len: usize) -> io::Result<()> {
+        super::unsupported("madvise_dontdump unsupported on Windows")
+    }
+
+    // ------------------------------------------------------------------------
+    // Windows process-level error mode helpers
+    // ------------------------------------------------------------------------
+
+    /// Common `SetErrorMode` flags for suppressing error dialogs on Windows.
+    ///
+    /// These constants mirror the Win32 SEM_* flags and can be combined.
+    /// Typical suppression includes:
+    /// - `SEM_FAILCRITICALERRORS` (0x0001)
+    /// - `SEM_NOGPFAULTERRORBOX` (0x0002)
+    /// - `SEM_NOOPENFILEERRORBOX` (0x8000)
+    ///
+    /// Note: These affect process-wide behavior and do not provide per-region
+    /// dump exclusion. They are best-effort controls over Windows error UI.
+    pub const SEM_FAILCRITICALERRORS: u32 = 0x0001;
+    /// See module-level docs for details.
+    pub const SEM_NOGPFAULTERRORBOX: u32 = 0x0002;
+    /// See module-level docs for details.
+    pub const SEM_NOOPENFILEERRORBOX: u32 = 0x8000;
+
+    extern "system" {
+        fn SetErrorMode(uMode: u32) -> u32;
+    }
+
+    /// Set the Windows process error mode and return the previous mode.
+    ///
+    /// Platform:
+    /// - Windows only. On non-Windows targets, use the cross-platform stub which returns `Unsupported`.
+    ///
+    /// Effect:
+    /// - This is process-wide and affects error dialog behavior (e.g., disabling GP fault dialog boxes).
+    /// - Use with caution: settings are inherited by child processes and impact global behavior.
+    ///
+    /// Returns:
+    /// - `Ok(previous_mode)` on success.
+    pub fn set_windows_error_mode(new_mode: u32) -> io::Result<u32> {
+        // SetErrorMode returns the previous mode; there is no explicit failure indicator.
+        let previous = unsafe { SetErrorMode(new_mode) };
+        Ok(previous)
+    }
+
+    /// Best-effort helper to suppress common Windows error dialogs for the current process.
+    ///
+    /// Sets a combination of `SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX`
+    /// via `SetErrorMode` and returns the previous mode so callers can restore it later.
+    ///
+    /// Returns:
+    /// - `Ok(previous_mode)` on success.
+    ///
+    /// Notes:
+    /// - Process-wide effect; inherited by child processes at `CreateProcess`.
+    /// - This does not influence what data is captured in crash dumps and is not a substitute
+    ///   for per-region dump exclusion (which Windows does not provide).
+    pub fn suppress_windows_error_dialogs_for_process() -> io::Result<u32> {
+        let desired = SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
+        let previous = unsafe { SetErrorMode(desired) };
+        Ok(previous)
+    }
+}
+
+#[cfg(windows)]
+#[cfg_attr(docsrs, doc(cfg(windows)))]
+pub use windows::{madvise_dontdump, mlock, munlock};
+
+#[cfg(not(windows))]
+/// Set the Windows process error mode (stub).
+///
+/// This stub is compiled on non-Windows targets and always returns `Unsupported`.
+pub fn set_windows_error_mode(_new_mode: u32) -> io::Result<u32> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "set_windows_error_mode unsupported on this platform",
+    ))
+}
+
+#[cfg(not(windows))]
+/// Suppress common Windows error dialogs for the current process (stub).
+///
+/// This stub is compiled on non-Windows targets and always returns `Unsupported`.
+pub fn suppress_windows_error_dialogs_for_process() -> io::Result<u32> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "suppress_windows_error_dialogs_for_process unsupported on this platform",
+    ))
+}
+
+#[cfg(all(not(unix), not(windows)))]
+#[cfg_attr(docsrs, doc(cfg(all(not(unix), not(windows)))))]
 pub use non_unix::{madvise_dontdump, mlock, munlock};
 
 #[cfg(test)]

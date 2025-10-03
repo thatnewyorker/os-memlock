@@ -134,7 +134,7 @@ fn try_lock(buf: &mut [u8]) -> io::Result<()> {
     let ptr = buf.as_ptr() as *const std::os::raw::c_void;
     let len = buf.len();
 
-    // Safety: caller owns `buf` and guarantees it's valid during this call.
+    // Safety: caller owns 'buf' and guarantees it's valid during this call.
     match unsafe { os_memlock::mlock(ptr, len) } {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == io::ErrorKind::Unsupported => {
@@ -144,11 +144,11 @@ fn try_lock(buf: &mut [u8]) -> io::Result<()> {
         Err(e) => Err(e),
     }
 }
-```
+
 
 ### RAII wrapper sketch
 
-```/dev/null/example_raii.rs#L1-120
+/dev/null/example_raii.rs#L1-120
 use std::io;
 
 pub struct LockedBuf {
@@ -187,7 +187,7 @@ impl Drop for LockedBuf {
         }
     }
 }
-```
+
 
 --------------------------------------------------------------------------------
 
@@ -234,6 +234,10 @@ impl Drop for LockedBuf {
   - `mlock`/`munlock`: available.
   - `madvise_dontdump`: returns `Unsupported` (no per-region dump-exclusion advice on Darwin).
   - Process-wide helpers: `disable_core_dumps_for_process()` to disable core dumps for the process, and `disable_core_dumps_with_guard() -> CoreDumpsDisabledGuard` to temporarily disable and automatically restore the previous `RLIMIT_CORE` on Drop. Best-effort and may fail in sandboxed/restricted environments. Effect is inherited by child processes at fork; dropping the guard in the parent does not retroactively change limits of already-forked children. Lowering limits is generally permitted; raising them back may require additional privileges.
+- Windows
+  - `mlock`/`munlock`: available via Win32 `VirtualLock`/`VirtualUnlock`.
+  - `madvise_dontdump`: returns `Unsupported` (no per-region dump-exclusion on Windows).
+  - Operational notes: locking large regions may fail due to working set limits or policy; handle `io::Error` from the OS.
 - Non-Unix
   - All functions return `Unsupported`.
 
@@ -250,8 +254,8 @@ impl Drop for LockedBuf {
 
 Example doctest-friendly snippet:
 
-```/dev/null/doc_no_run.rs#L1-30
-/// ```no_run
+/dev/null/doc_no_run.rs#L1-30
+/// no_run
 /// # use std::io;
 /// # fn example() -> io::Result<()> {
 /// let mut buf = vec![0u8; 4096];
@@ -261,8 +265,8 @@ Example doctest-friendly snippet:
 ///     Err(e) => return Err(e),
 /// }
 /// # Ok(()) }
-/// ```
-```
+///
+
 
 --------------------------------------------------------------------------------
 
@@ -270,12 +274,12 @@ Example doctest-friendly snippet:
 
 - The crate is configured to:
   - Include README as crate-level docs.
-  - Display `#[doc(cfg(...))]` badges under docs.rs (gated by `--cfg docsrs`).
-  - Build with `all-features = true` for complete coverage of feature-gated APIs (if any are added in the future).
+  - Display #[doc(cfg(...))] badges under docs.rs (gated by --cfg docsrs).
+  - Build with all-features = true for complete coverage of feature-gated APIs (if any are added in the future).
 
 Implications
 - Platform availability is clearly annotated in the docs (e.g., “cfg(unix)”).
-- Doctests should compile consistently on docs.rs. Use `no_run` to avoid executing syscalls.
+- Doctests should compile consistently on docs.rs. Use no_run to avoid executing syscalls.
 
 --------------------------------------------------------------------------------
 
@@ -292,9 +296,9 @@ Implications
 
 - Threat model
   - Memory locking reduces the risk of secrets being written to swap, but it is not a panacea. Physical attacks, kernel compromise, DMA, or process memory leaks remain in scope.
-  - `madvise_dontdump` is an advisory hint and does not guarantee that secrets will never appear in core dumps under all circumstances.
+  - madvise_dontdump is an advisory hint and does not guarantee that secrets will never appear in core dumps under all circumstances.
 - Defense-in-depth
-  - Combine `mlock` with:
+  - Combine mlock with:
     - Minimizing secret lifetimes.
     - Avoiding copies of sensitive data.
     - Zeroization on drop/failure paths.
@@ -312,19 +316,19 @@ Implications
 - Why not provide a safe, high-level secret container?
   - This crate intentionally separates the low-level primitives. You can build a safe container on top tailored to your application’s policy (alignment, pinning, zeroization strategy, lifetime guarantees).
 
-- Why not implement `madvise` on non-Linux Unixes?
-  - Semantics and availability vary (e.g., `MADV_NOCORE`). This crate opts for an explicit Linux-only implementation; other platforms return `Unsupported`. Future versions may add optional support where a stable, portable contract is possible.
+- Why not implement madvise on non-Linux Unixes?
+  - Semantics and availability vary (e.g., MADV_NOCORE). This crate opts for an explicit Linux-only implementation; other platforms return Unsupported. Future versions may add optional support where a stable, portable contract is possible.
 
-- Why not `mlockall`?
-  - `mlockall` locks the entire address space and can have significant system impact. This crate focuses on precise, region-based locking that is safer to integrate incrementally.
+- Why not mlockall?
+  - mlockall locks the entire address space and can have significant system impact. This crate focuses on precise, region-based locking that is safer to integrate incrementally.
 
 --------------------------------------------------------------------------------
 
 ## Examples Directory
 
-- `examples/simple.rs`
+- examples/simple.rs
   - Minimal usage with safe error handling and Linux/FreeBSD dump-exclusion hint.
-- `examples/locked_vec.rs`
+- examples/locked_vec.rs
   - A minimal RAII example that locks on creation, zeroizes on drop, and unlocks before freeing. Demonstrates a pattern for safe wrappers.
 
 --------------------------------------------------------------------------------
@@ -333,14 +337,14 @@ Implications
 
 - Choose your policy:
   - What data needs to be locked?
-  - What to do if `mlock` is unsupported or fails? (fail closed vs degrade gracefully)
+  - What to do if mlock is unsupported or fails? (fail closed vs degrade gracefully)
 - Wrap and enforce:
   - Create a RAII wrapper with zeroization.
   - Ensure unlock always executes (even on error paths).
 - Observe:
   - Log/metric on fallback paths and failures to enforce your operational stance.
 - Test realistically:
-  - Consider platform limits (`RLIMIT_MEMLOCK`), container policies, and bandwidth of locks.
+  - Consider platform limits (RLIMIT_MEMLOCK), container policies, and bandwidth of locks.
 
 --------------------------------------------------------------------------------
 
@@ -348,8 +352,8 @@ Implications
 
 Dual-licensed under MIT OR Apache-2.0.
 
-- MIT: See `LICENSE-MIT`
-- Apache-2.0: See `LICENSE-APACHE`
+- MIT: See LICENSE-MIT
+- Apache-2.0: See LICENSE-APACHE
 
 By contributing, you agree that your contributions are licensed under the same terms.
 
@@ -357,7 +361,7 @@ By contributing, you agree that your contributions are licensed under the same t
 
 ## References and Further Reading
 
-- `mlock(2)`, `munlock(2)`, `madvise(2)` man pages
-- `RLIMIT_MEMLOCK`, `CAP_IPC_LOCK` on Linux
+- mlock(2), munlock(2), madvise(2) man pages
+- RLIMIT_MEMLOCK, CAP_IPC_LOCK on Linux
 - docs.rs for this crate: https://docs.rs/os-memlock
 - Repository: https://github.com/thatnewyorker/Conflux
